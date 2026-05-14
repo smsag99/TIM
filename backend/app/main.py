@@ -32,6 +32,7 @@ class AskRequest(BaseModel):
 
 class AskResponse(BaseModel):
     answer: str
+    suggested_action: str
     sources: list[str]
 
 
