@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Network Log RAG Assistant</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a2029;
+      --border: #2a323d;
+      --text: #e6e6e6;
+      --muted: #8a94a0;
+      --accent: #4f9cf9;
+      --warn: #e0a458;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      line-height: 1.5;
+    }
+    .wrap { max-width: 820px; margin: 0 auto; padding: 40px 20px 80px; }
+    header h1 { font-size: 22px; margin: 0 0 4px; }
+    header p { color: var(--muted); margin: 0 0 28px; font-size: 14px; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .panel h2 {
+      font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em;
+      color: var(--muted); margin: 0 0 14px;
+    }
+    .ask-row { display: flex; gap: 10px; }
+    input[type="text"] {
+      flex: 1; background: var(--bg); border: 1px solid var(--border);
+      color: var(--text); padding: 11px 13px; border-radius: 7px;
+      font-size: 14px; outline: none;
+    }
+    input[type="text"]:focus { border-color: var(--accent); }
+    button {
+      background: var(--accent); color: #04101f; border: none;
+      padding: 11px 18px; border-radius: 7px; font-weight: 600;
+      font-size: 14px; cursor: pointer;
+    }
+    button:disabled { opacity: 0.5; cursor: default; }
+    .examples { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
+    .examples span {
+      font-size: 12px; color: var(--accent); cursor: pointer;
+      border: 1px solid var(--border); padding: 4px 9px; border-radius: 20px;
+    }
+    .answer { margin-top: 16px; white-space: pre-wrap; font-size: 14.5px; }
+    .sources {
+      margin-top: 12px; font-family: var(--mono); font-size: 12px;
+      color: var(--muted);
+    }
+    .empty { color: var(--muted); font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    th, td {
+      text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border);
+    }
+    th { color: var(--muted); font-weight: 600; font-size: 12px; }
+    td.ip { font-family: var(--mono); }
+    td.count { color: var(--warn); font-weight: 600; }
+    .note { font-size: 12px; color: var(--muted); margin-top: 10px; }
+    .err { color: #e0676b; font-size: 13.5px; margin-top: 12px; }
+    .spin { color: var(--muted); font-size: 14px; margin-top: 14px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Network Log RAG Assistant</h1>
+      <p>Ask plain-language questions about network and service logs.
+         Answers are grounded in the actual log lines.</p>
+    </header>
+
+    <div class="panel">
+      <h2>Ask</h2>
+      <div class="ask-row">
+        <input id="q" type="text"
+               placeholder="e.g. were there any refused connections, and from where?" />
+        <button id="askBtn">Ask</button>
+      </div>
+      <div class="examples" id="examples"></div>
+      <div id="result"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Flagged source IPs</h2>
+      <div id="flagged" class="empty">Loading…</div>
+      <div class="note">
+        Detection only — IPs with a high count of failed events
+        (refused / timeout / slow). This flags; it does not block.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Set this to your deployed backend URL. For local dev:
+    const API_BASE = "http://localhost:8000";
+
+    const exampleQs = [
+      "were there any refused connections, and from where?",
+      "did the provisioning service have any problems?",
+      "which source IP made the most failed attempts?",
+    ];
+
+    const qInput = document.getElementById("q");
+    const askBtn = document.getElementById("askBtn");
+    const result = document.getElementById("result");
+    const examplesEl = document.getElementById("examples");
+
+    exampleQs.forEach((ex) => {
+      const s = document.createElement("span");
+      s.textContent = ex;
+      s.onclick = () => { qInput.value = ex; ask(); };
+      examplesEl.appendChild(s);
+    });
+
+    async function ask() {
+      const question = qInput.value.trim();
+      if (question.length < 3) return;
+      askBtn.disabled = true;
+      result.innerHTML = '<div class="spin">Thinking…</div>';
+      try {
+        const res = await fetch(API_BASE + "/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question }),
+        });
+        if (!res.ok) throw new Error("Request failed (" + res.status + ")");
+        const data = await res.json();
+        result.innerHTML =
+          '<div class="answer"></div><div class="sources"></div>';
+        result.querySelector(".answer").textContent = data.answer;
+        result.querySelector(".sources").textContent =
+          "sources: " + data.sources.join(", ");
+      } catch (e) {
+        result.innerHTML = '<div class="err"></div>';
+        result.querySelector(".err").textContent = e.message;
+      } finally {
+        askBtn.disabled = false;
+      }
+    }
+
+    askBtn.onclick = ask;
+    qInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") ask();
+    });
+
+    async function loadFlagged() {
+      const el = document.getElementById("flagged");
+      try {
+        const res = await fetch(API_BASE + "/flagged");
+        if (!res.ok) throw new Error("Request failed (" + res.status + ")");
+        const data = await res.json();
+        const rows = data.flagged || [];
+        if (rows.length === 0) {
+          el.className = "empty";
+          el.textContent = "No IPs above the threshold.";
+          return;
+        }
+        let html =
+          "<table><tr><th>Source IP</th><th>Failed events</th>" +
+          "<th>Total events</th></tr>";
+        rows.forEach((r) => {
+          html +=
+            "<tr><td class='ip'>" + r.ip + "</td>" +
+            "<td class='count'>" + r.failed_events + "</td>" +
+            "<td>" + r.total_events + "</td></tr>";
+        });
+        html += "</table>";
+        el.className = "";
+        el.innerHTML = html;
+      } catch (e) {
+        el.className = "err";
+        el.textContent = e.message;
+      }
+    }
+
+    loadFlagged();
+  </script>
+</body>
+</html>
