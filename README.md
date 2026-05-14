@@ -1,95 +1,158 @@
-# Network Log RAG Assistant
+# Network Log RAG Assistant — Web App
 
-A small retrieval-augmented generation (RAG) tool that lets you ask
-plain-language questions about network and service log data.
+A web app that lets you ask plain-language questions about network
+and service logs, with answers grounded in the actual log lines. It
+also flags source IPs with a high number of failed connection events.
+
+Built with FastAPI, LangChain, Google Generative AI, and Supabase
+pgvector as the vector store. Frontend is a single static page.
 
 ## Why this project
 
-Network and service operations produce large volumes of log data:
-connection records, request latencies, error events. The information
-needed to understand an incident is usually *in* the logs — but
-finding it means scrolling, grepping, and knowing what to look for.
+Network and service operations generate large volumes of log data.
+The information needed to understand an incident is in the logs, but
+finding it means scrolling and grepping. This project applies
+retrieval-augmented generation (RAG) to operational log data: you
+ask a question in plain language, the system retrieves the most
+relevant log lines and uses them to ground the model's answer.
 
-This project is a small step toward making that data easier to
-query: instead of searching logs by hand, you ask a question in
-plain language and get an answer grounded in the actual log lines.
-It applies a standard AI pattern — retrieval-augmented generation —
-to operational log data, using Python, LangChain, and a vector
-database. Working with structured operational data and making it
-queryable is a data-engineering task; this project applies an LLM
-layer on top of it.
-
-## What it does
-
-The tool indexes a small set of sample log files:
-
-- **`connections.log`** — network connection records (source IP,
-  destination, port, status, bytes).
-- **`services.log`** — application/service logs for a provisioning
-  API and an element manager (request latencies, results, errors).
-
-You then ask questions in plain language, for example:
-
-```
-python -m src.main ask "were there any refused connections, and from where?"
-python -m src.main ask "did the provisioning service have any problems?"
-python -m src.main ask "which source IP generated the most failed attempts?"
-python -m src.main ask "Were there any refused connections, and from where?" 
-python -m src.main ask "Did the provisioning service have problems?" 
-python -m src.main ask "Which IP made the most failed attempts?"
-python -m src.main ask "What happened around 09:09?"
-python -m src.main ask "Were there any errors in the service log?"
-python -m src.main ask "Summarize the connection activity."ر
-```
-
-The tool retrieves the most relevant chunks of log lines from the
-vector store and passes them to the language model as grounding
-context. The model answers based on those retrieved lines — not on
-its own assumptions — and the answer reports which log files and
-line ranges the evidence came from, so every answer is traceable.
+A second, rule-based feature scans the connection logs and flags
+source IPs with many failed events (refused / timeout / slow). This
+is detection only — it flags, it does not block.
 
 ## Architecture
 
 ```
-data/logs/      sample log files (connection + service logs)
-       |
-       v
-src/ingest.py   read logs -> group into line windows ->
-                embed -> Chroma vector store
-       |
-       v
-src/rag.py      retrieve relevant log chunks -> ground the LLM prompt
-       |
-       v
-src/main.py     command-line interface (ask)
+                 ┌──────────────────────────┐
+  Browser ─────► │  Frontend (static page)  │   hosted on Vercel
+                 └────────────┬─────────────┘
+                              │  HTTP (/ask, /flagged)
+                 ┌────────────▼─────────────┐
+                 │  Backend — FastAPI       │   hosted on Render
+                 │  app/main.py             │
+                 │   ├── rag.py  (ask)      │
+                 │   └── flagging.py (flag) │
+                 └────────────┬─────────────┘
+                              │
+              ┌───────────────┴───────────────┐
+              ▼                               ▼
+   ┌────────────────────┐         ┌────────────────────────┐
+   │ Supabase pgvector  │         │ Google Generative AI   │
+   │ (log chunk vectors)│         │ (embeddings + LLM)     │
+   └────────────────────┘         └────────────────────────┘
 ```
 
-- **Chunking:** logs are line-oriented, so they are split into small
-  overlapping windows of consecutive lines rather than by character
-  count. Each chunk keeps its source file and line range as metadata.
-- **Embeddings & LLM:** Google Generative AI (`gemini-embedding-001`,
-  `gemini-2.5-flash`).
-- **Vector store:** Chroma, persisted locally.
-- **Orchestration:** LangChain.
+- **Chunking:** logs are line-oriented, so `ingest.py` splits them
+  into small overlapping windows of consecutive lines. Each chunk
+  keeps its source file and line range as metadata.
+- **Retrieval:** a question is embedded and the closest chunks are
+  pulled from pgvector (top-K semantic search).
+- **Grounding:** retrieved chunks are passed to the LLM as context;
+  the model answers from them and reports which lines it used.
+- **Flagging:** `flagging.py` parses the raw log lines directly
+  (deterministic counting — no LLM needed).
 
-## Setup
+## Project layout
+
+```
+backend/
+  app/
+    config.py     env vars, settings
+    ingest.py     chunk logs -> embed -> Supabase pgvector
+    rag.py        retrieval + LLM (the /ask logic)
+    flagging.py   rule-based high-failure IP detection
+    main.py       FastAPI app (/ask, /flagged)
+  data/logs/      sample log files
+  requirements.txt
+  render.yaml     Render deploy config
+  .env.example
+frontend/
+  index.html      single-page UI
+```
+
+## Run locally
+
+### 1. Backend
 
 ```bash
-# 1. Install dependencies
+cd backend
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# 2. Add your API key
 cp .env.example .env
-# then edit .env and set GOOGLE_API_KEY
-
-# 3. Build the vector store (run once)
-python -m src.ingest
-
-# 4. Ask questions
-python -m src.main ask "were there any failed connections?"
+# edit .env: add GOOGLE_API_KEY and your Supabase DATABASE_URL
 ```
 
-The API key is read from `.env` (which is gitignored) and is never
-hardcoded.
+Enable the pgvector extension in Supabase once (SQL editor):
 
+```sql
+create extension if not exists vector;
+```
 
+Then load the logs and start the server:
+
+```bash
+python -m app.ingest          # one-time: builds the vector store
+uvicorn app.main:app --reload # starts on http://localhost:8000
+```
+
+### 2. Frontend
+
+`frontend/index.html` is a static file. For local use, `API_BASE`
+at the top of the `<script>` is already set to `http://localhost:8000`.
+Just open the file in a browser, or serve it:
+
+```bash
+cd frontend
+python -m http.server 5500    # then open http://localhost:5500
+```
+
+## Deploy
+
+### Backend on Render
+
+1. Push this repo to GitHub.
+2. On Render: New > Web Service > connect the repo.
+3. Render reads `backend/render.yaml`. Confirm root dir is `backend`.
+4. Add environment variables as secrets: `GOOGLE_API_KEY`,
+   `DATABASE_URL`, and `ALLOWED_ORIGINS` (set this to your Vercel URL
+   once you have it).
+5. Deploy. After the first deploy, run the ingest step once — either
+   from the Render Shell (`python -m app.ingest`) or locally pointed
+   at the same Supabase database.
+
+### Frontend on Vercel
+
+1. In `frontend/index.html`, set `API_BASE` to your Render backend
+   URL (e.g. `https://network-log-rag-backend.onrender.com`).
+2. On Vercel: New Project > import the repo > set the root directory
+   to `frontend`. No build step — it is a static page.
+3. Deploy. Copy the Vercel URL back into the backend's
+   `ALLOWED_ORIGINS` env var and redeploy the backend.
+
+## Security notes
+
+- API keys and the database URL are read from environment variables
+  only — never hardcoded, never committed (`.env` is gitignored).
+- `ALLOWED_ORIGINS` should be set to the specific frontend URL in
+  production, not `*`.
+- The `/ask` endpoint limits question length. For a public
+  deployment you would also want rate limiting to protect your API
+  quota — see "limitations" below.
+
+## Scope and honest limitations
+
+This is a prototype, not a production system:
+
+- The log sample is small and synthetic.
+- Retrieval is purely semantic (top-K) — there is no time-range or
+  field-based filtering yet, so questions needing an exact total
+  across all logs are not reliably answered.
+- There is no authentication or rate limiting on the public
+  endpoints yet.
+- There is no evaluation harness measuring answer quality.
+
+Natural next steps: structured parsing of log fields (so questions
+about specific IPs / ports / time ranges can be filtered precisely),
+a larger and real log corpus, support for streaming logs,
+authentication and rate limiting, and an evaluation set.
