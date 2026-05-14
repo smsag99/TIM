@@ -1,6 +1,11 @@
+2026-05-12 08:55:10 INFO  provisioning-api   request id=req-8790 action=activate_service latency_ms=118 result=OK
+2026-05-12 08:56:42 INFO  provisioning-api   request id=req-8791 action=modify_service   latency_ms=102 result=OK
+2026-05-12 08:58:15 INFO  provisioning-api   request id=req-8792 action=activate_service latency_ms=130 result=OK
+2026-05-12 08:59:48 INFO  element-manager    sync id=sync-218 nodes=48 result=OK
 2026-05-12 09:00:12 INFO  provisioning-api   request id=req-8801 action=activate_service latency_ms=120 result=OK
 2026-05-12 09:01:48 INFO  provisioning-api   request id=req-8802 action=activate_service latency_ms=135 result=OK
 2026-05-12 09:03:22 INFO  provisioning-api   request id=req-8803 action=modify_service   latency_ms=98  result=OK
+2026-05-12 09:04:10 INFO  element-manager    sync id=sync-219 nodes=48 result=OK
 2026-05-12 09:05:55 INFO  provisioning-api   request id=req-8804 action=activate_service latency_ms=410 result=OK
 2026-05-12 09:07:10 WARN  provisioning-api   request id=req-8805 action=activate_service latency_ms=1320 result=OK
 2026-05-12 09:08:33 WARN  provisioning-api   request id=req-8806 action=modify_service   latency_ms=1890 result=OK
@@ -15,3 +20,16 @@
 2026-05-12 09:15:08 INFO  element-manager    sync id=sync-221 nodes=48 result=OK
 2026-05-12 09:16:33 INFO  provisioning-api   request id=req-8814 action=activate_service latency_ms=145 result=OK
 2026-05-12 09:18:00 INFO  provisioning-api   request id=req-8815 action=activate_service latency_ms=128 result=OK
+2026-05-12 09:19:45 INFO  provisioning-api   request id=req-8816 action=modify_service   latency_ms=115 result=OK
+2026-05-12 09:21:20 INFO  provisioning-api   request id=req-8817 action=activate_service latency_ms=122 result=OK
+2026-05-12 09:22:10 WARN  element-manager    sync id=sync-222 nodes=46 result=PARTIAL
+2026-05-12 09:23:05 ERROR element-manager    sync id=sync-223 nodes=0  result=FAILED
+2026-05-12 09:24:48 ERROR element-manager    sync id=sync-224 nodes=0  result=FAILED
+2026-05-12 09:26:30 INFO  provisioning-api   request id=req-8818 action=activate_service latency_ms=140 result=OK
+2026-05-12 09:28:12 INFO  element-manager    sync id=sync-225 nodes=48 result=OK
+2026-05-12 09:29:55 INFO  provisioning-api   request id=req-8819 action=modify_service   latency_ms=108 result=OK
+2026-05-12 09:31:40 INFO  provisioning-api   request id=req-8820 action=activate_service latency_ms=133 result=OK
+2026-05-12 09:33:22 INFO  element-manager    sync id=sync-226 nodes=48 result=OK
+2026-05-12 09:35:05 INFO  provisioning-api   request id=req-8821 action=activate_service latency_ms=119 result=OK
+2026-05-12 09:37:48 INFO  provisioning-api   request id=req-8822 action=modify_service   latency_ms=124 result=OK
+2026-05-12 09:39:30 INFO  provisioning-api   request id=req-8823 action=activate_service latency_ms=141 result=OK

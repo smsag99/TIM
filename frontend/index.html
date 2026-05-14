@@ -57,17 +57,32 @@
     }
     .answer { margin-top: 16px; white-space: pre-wrap; font-size: 14.5px; }
     .action {
-      margin-top: 14px; padding: 11px 13px;
-      background: rgba(79, 156, 249, 0.08);
-      border: 1px solid rgba(79, 156, 249, 0.3);
-      border-radius: 7px; font-size: 13.5px;
+      margin-top: 16px; padding: 14px 16px 14px 14px;
+      background: linear-gradient(
+        135deg, rgba(79, 156, 249, 0.10), rgba(79, 156, 249, 0.04));
+      border: 1px solid rgba(79, 156, 249, 0.35);
+      border-left: 3px solid var(--accent);
+      border-radius: 8px;
+      display: flex; gap: 12px; align-items: flex-start;
     }
-    .action b {
-      display: block; font-size: 11px; text-transform: uppercase;
-      letter-spacing: 0.05em; color: var(--accent); margin-bottom: 4px;
+    .action .icon {
+      flex-shrink: 0; width: 26px; height: 26px; border-radius: 6px;
+      background: rgba(79, 156, 249, 0.18);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px;
+    }
+    .action .body { flex: 1; }
+    .action .label {
+      font-size: 10.5px; text-transform: uppercase; font-weight: 700;
+      letter-spacing: 0.07em; color: var(--accent); margin-bottom: 3px;
+    }
+    .action .text { font-size: 14px; color: var(--text); }
+    .action .hint {
+      font-size: 11.5px; color: var(--muted); margin-top: 6px;
+      font-style: italic;
     }
     .sources {
-      margin-top: 12px; font-family: var(--mono); font-size: 12px;
+      margin-top: 14px; font-family: var(--mono); font-size: 12px;
       color: var(--muted);
     }
     .empty { color: var(--muted); font-size: 14px; }
@@ -120,6 +135,11 @@
       "were there any refused connections, and from where?",
       "did the provisioning service have any problems?",
       "which source IP made the most failed attempts?",
+      "is there anything unusual in the logs?",
+      "what happened around 09:09?",
+      "did the element manager have any failed syncs?",
+      "were there any port scans?",
+      "summarize the activity in these logs",
     ];
 
     const qInput = document.getElementById("q");
@@ -149,14 +169,22 @@
         const data = await res.json();
         result.innerHTML =
           '<div class="answer"></div>' +
-          '<div class="action" style="display:none"><b>Suggested action</b>' +
-          '<span></span></div>' +
+          '<div class="action" style="display:none">' +
+          '  <div class="icon">&#9889;</div>' +
+          '  <div class="body">' +
+          '    <div class="label">Suggested action</div>' +
+          '    <div class="text"></div>' +
+          '    <div class="hint">Recommendation only \u2014 ' +
+          'a human operator decides whether to act.</div>' +
+          '  </div>' +
+          '</div>' +
           '<div class="sources"></div>';
         result.querySelector(".answer").textContent = data.answer;
         if (data.suggested_action) {
           const actionEl = result.querySelector(".action");
-          actionEl.style.display = "block";
-          actionEl.querySelector("span").textContent = data.suggested_action;
+          actionEl.style.display = "flex";
+          actionEl.querySelector(".text").textContent =
+            data.suggested_action;
         }
         result.querySelector(".sources").textContent =
           "sources: " + data.sources.join(", ");
