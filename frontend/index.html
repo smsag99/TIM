@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Network Log RAG Assistant</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     :root {
       --bg: #0f1419;
@@ -179,7 +180,7 @@
           '  </div>' +
           '</div>' +
           '<div class="sources"></div>';
-        result.querySelector(".answer").textContent = data.answer;
+        result.querySelector(".answer").innerHTML = marked.parse(data.answer);
         if (data.suggested_action) {
           const actionEl = result.querySelector(".action");
           actionEl.style.display = "flex";
