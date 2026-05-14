@@ -34,6 +34,12 @@ You then ask questions in plain language, for example:
 python -m src.main ask "were there any refused connections, and from where?"
 python -m src.main ask "did the provisioning service have any problems?"
 python -m src.main ask "which source IP generated the most failed attempts?"
+python -m src.main ask "Were there any refused connections, and from where?" 
+python -m src.main ask "Did the provisioning service have problems?" 
+python -m src.main ask "Which IP made the most failed attempts?"
+python -m src.main ask "What happened around 09:09?"
+python -m src.main ask "Were there any errors in the service log?"
+python -m src.main ask "Summarize the connection activity."ر
 ```
 
 The tool retrieves the most relevant chunks of log lines from the
@@ -86,17 +92,4 @@ python -m src.main ask "were there any failed connections?"
 The API key is read from `.env` (which is gitignored) and is never
 hardcoded.
 
-## Scope and honest limitations
 
-This is a focused prototype, not a production system. The log sample
-is small and synthetic, retrieval is purely semantic (no time-range
-or field-based filtering yet), and there is no evaluation harness.
-The point is to demonstrate the approach — grounded retrieval over
-log data, with traceable answers — at a scale that is easy to read
-and verify.
-
-Natural next steps would be: structured parsing of log fields (so
-questions about specific IPs, ports, or time ranges can be filtered
-precisely rather than only retrieved semantically), a larger and
-real log corpus, support for streaming/continuously updated logs,
-and an evaluation set to measure answer quality.
