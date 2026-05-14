@@ -1,0 +1,18 @@
+# Render deployment config for the backend.
+# In the Render dashboard, set the environment variables
+# (GOOGLE_API_KEY, DATABASE_URL, ALLOWED_ORIGINS) as secrets.
+
+services:
+  - type: web
+    name: network-log-rag-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
